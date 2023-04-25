@@ -85,7 +85,7 @@ class MyOwnDataset(InMemoryDataset):
         return ['train_twitch_netlsd.pt', 'test_twitch_netlsd.pt']
     def process(self):
         train_list, test_list = [],[]
-        train_indices, test_indices = train_test_split(list(range(len(self.labels))), test_size=0.2, stratify=self.labels)
+        train_indices, test_indices = train_test_split(list(range(len(self.labels))), test_size=0.2, stratify=self.labels, random_state=123)
         ###CTRL
         print("#training sampels:", len(train_indices))
         for i, index in enumerate(train_indices):
@@ -155,7 +155,7 @@ class MyOwnDataset(InMemoryDataset):
 # In[ ]:
 
 
-k =2
+k =3
 train_dataset = MyOwnDataset(graphs,labels, k,split='train')
 test_dataset = MyOwnDataset(graphs, labels,k, split='test')
 batch_size = 128
