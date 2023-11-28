@@ -242,17 +242,17 @@ def test(loader):
 # In[ ]:
 
 
-models = ["GraphConv","GCNConv","SAGEConv","TransformerConv","ResGatedGraphConv"]
+models = ["GraphConv"]
 
 file = open("results_twitch_egos.csv",'a',newline = '')
 res_writer = csv.writer(file, delimiter=',',quotechar='|', quoting=csv.QUOTE_MINIMAL)
 res_writer.writerow(["results with netlsd"])
 for m in models:
-    print(m)
+    # print(m)
     gnn = eval(m)
     epochs = 101
     hidden_channels,num_layers=64, 3
-    seeds = [123,234,345,456,567,678,789,899,900]
+    seeds = [123,234]
     seed_loss_list, seed_acc_list = [],[]
     for seed in seeds:
         torch.manual_seed(seed)
