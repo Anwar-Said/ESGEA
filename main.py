@@ -1,17 +1,13 @@
 import math
-import os.path as osp
-from itertools import chain
 import numpy as np
 import torch
 import torch.nn.functional as F
-from sklearn.metrics import roc_auc_score,accuracy_score
+from sklearn.metrics import roc_auc_score
 from torch.nn import BCEWithLogitsLoss, Conv1d, MaxPool1d, ModuleList
 from torch_geometric.data import InMemoryDataset
-from torch_geometric.datasets import Planetoid
 from torch_geometric.loader import DataLoader
 from torch_geometric.nn import MLP, GraphConv, global_sort_pool
 from torch_geometric.utils import from_networkx
-import matplotlib.pyplot as plt
 import networkx as nx
 from sklearn.model_selection import train_test_split
 import torch_geometric.transforms as T
@@ -82,7 +78,6 @@ class MyOwnDataset(InMemoryDataset):
     def process(self):
         train_list, test_list = [],[]
         train_indices, test_indices = train_test_split(list(range(len(self.labels))), test_size=0.2, stratify=self.labels, random_state=123)
-        ###CTRL
         print("#training sampels:", len(train_indices))
         for i, index in enumerate(train_indices):
             graph = self.dataset[index]
