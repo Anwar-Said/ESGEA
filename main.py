@@ -6,24 +6,20 @@ import torch
 import torch.nn.functional as F
 from sklearn.metrics import roc_auc_score,accuracy_score
 from torch.nn import BCEWithLogitsLoss, Conv1d, MaxPool1d, ModuleList
-from torch_geometric.data import Data, InMemoryDataset
+from torch_geometric.data import InMemoryDataset
 from torch_geometric.datasets import Planetoid
 from torch_geometric.loader import DataLoader
-from torch_geometric.nn import MLP, GCNConv, SAGEConv,GraphConv,TransformerConv,ResGatedGraphConv, global_sort_pool
-from torch_geometric.utils import k_hop_subgraph, to_scipy_sparse_matrix, from_networkx,to_networkx
+from torch_geometric.nn import MLP, GraphConv, global_sort_pool
+from torch_geometric.utils import from_networkx
 import matplotlib.pyplot as plt
-import pickle
 import networkx as nx
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-import warnings
-warnings.filterwarnings('ignore')
 from sklearn.model_selection import train_test_split
 import torch_geometric.transforms as T
 import pandas as pd
 import random
 import netlsd
 import json
-import csv
+
 
 # dataset is available here: https://github.com/benedekrozemberczki/datasets#twitch-ego-nets
 
@@ -151,19 +147,15 @@ class MyOwnDataset(InMemoryDataset):
         torch.save(self.collate(test_list),
                    self.processed_paths[1])
 
-
-# In[ ]:
-
-
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+import warnings
+warnings.filterwarnings('ignore')
 k =3
 train_dataset = MyOwnDataset(graphs,labels, k,split='train')
 test_dataset = MyOwnDataset(graphs, labels,k, split='test')
 batch_size = 128
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size)
-
-
-
 
 class DGCNN(torch.nn.Module):
     def __init__(self, hidden_channels,num_layers,GNN,k=0.6):
@@ -177,7 +169,6 @@ class DGCNN(torch.nn.Module):
 
         self.convs = ModuleList()
         self.convs.append(GNN(train_dataset.num_features, hidden_channels))
-#         self.convs.append(GNN(1433, hidden_channels))
         for i in range(0, num_layers - 1):
             self.convs.append(GNN(hidden_channels, hidden_channels))
         self.convs.append(GNN(hidden_channels, 1))
@@ -224,6 +215,12 @@ def train():
         total_loss += float(loss) * data.num_graphs
 
     return total_loss / len(train_dataset)
+def set_seed(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
 
 
 @torch.no_grad()
@@ -238,50 +235,22 @@ def test(loader):
 
     return roc_auc_score(torch.cat(y_true), torch.cat(y_pred))
 
+gnn = eval("GraphConv")
+epochs = 100
+hidden_channels,num_layers=64, 3
+seeds = [123]
+for seed in seeds:
+    set_seed(seed)
+    model = DGCNN(hidden_channels, num_layers,gnn).to(device)
+    optimizer = torch.optim.Adam(params=model.parameters(), lr=0.0001)
+    criterion = torch.nn.BCEWithLogitsLoss()
 
-# In[ ]:
-
-
-models = ["GraphConv"]
-
-file = open("results_twitch_egos.csv",'a',newline = '')
-res_writer = csv.writer(file, delimiter=',',quotechar='|', quoting=csv.QUOTE_MINIMAL)
-res_writer.writerow(["results with netlsd"])
-for m in models:
-    # print(m)
-    gnn = eval(m)
-    epochs = 101
-    hidden_channels,num_layers=64, 3
-    seeds = [123,234]
-    seed_loss_list, seed_acc_list = [],[]
-    for seed in seeds:
-        torch.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-        np.random.seed(seed)
-        random.seed(seed)
-        model = DGCNN(hidden_channels, num_layers,gnn).to(device)
-#         print(model)
-        optimizer = torch.optim.Adam(params=model.parameters(), lr=0.0001)
-        criterion = torch.nn.BCEWithLogitsLoss()
-        best_test_acc = test_acc = loss_with_best = 0
-        loss_list, test_list = [],[]
-        for epoch in range(1, epochs):
-            loss = train()
-            test_acc = test(test_loader)
-            if test_acc > best_test_acc:
-                best_test_acc = test_acc
-                loss_with_best = loss
-        #         test_acc = test(test_loader)
-            
-            print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}, '
-                  f'Test: {test_acc:.4f}')
-            loss_list.append(loss)
-            test_list.append(test_acc)
-        seed_loss_list.append(loss_with_best)
-        seed_acc_list.append(best_test_acc)
-    to_write= [m,epochs, np.mean(seed_loss_list), np.round(np.mean(seed_acc_list)*100,4), np.round(np.std(seed_acc_list)*100,4)]
-    res_writer.writerow(to_write)
-file.flush()
-file.close()
+    for epoch in range(epochs):
+        loss = train()
+        test_acc = test(test_loader)
+    #         test_acc = test(test_loader)
+        
+        print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}, '
+                f'Test: {test_acc:.4f}')
+        
 
